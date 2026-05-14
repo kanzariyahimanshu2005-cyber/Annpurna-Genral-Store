@@ -8,24 +8,29 @@ import {
   MessageSquare,
   ChevronRight,
   ArrowLeft,
+  Sparkles,
+  Plane,
+  RefreshCcw
 } from "lucide-react";
 import { Link, useParams, useLocation } from "react-router-dom";
 import {
-  APIProvider,
-  Map,
-  AdvancedMarker,
-  Pin,
-} from "@vis.gl/react-google-maps";
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup
+} from "react-leaflet";
+import L from "leaflet";
 import { useEffect, useState } from "react";
 
-const API_KEY =
-  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
-  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
-  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
-  "";
-const hasValidKey = Boolean(API_KEY) && API_KEY !== "YOUR_API_KEY";
+// Fix Leaflet's default icon issue in React
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
-function DeliveryMap() {
+function DeliveryMap({ deliveryMode }: { deliveryMode?: string }) {
   const [partnerLocation, setPartnerLocation] = useState({
     lat: 19.076,
     lng: 72.8777,
@@ -42,47 +47,39 @@ function DeliveryMap() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!hasValidKey) {
-    return (
-      <div className="h-64 mt-6 rounded-2xl border border-white/5 bg-white/5 flex flex-col items-center justify-center p-6 text-center">
-        <h3 className="text-white font-medium mb-2">
-          Google Maps API Key Required
-        </h3>
-        <p className="text-sm text-gray-400 mb-4">
-          Add your API key to see real-time delivery tracking.
-        </p>
-        <p className="text-xs text-gray-500">
-          Go to Settings (⚙️) &rarr; Secrets &rarr; Add GOOGLE_MAPS_PLATFORM_KEY
-        </p>
-      </div>
-    );
-  }
+  const droneIcon = new L.DivIcon({
+    html: `<div style="background: white; padding: 4px; border-radius: 50%; border: 2px solid #a855f7; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plane"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.2-1.1.6L3 8l6 5.5-3.5 3.5-3.5-1L1 17l6 6 1-1 1.5-3.55L14 15l5.5 6 1.2-.7c.4-.2.7-.6.6-1.1Z"/></svg></div>`,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+
+  const partnerIcon = new L.DivIcon({
+    html: `<div style="background: white; padding: 4px; border-radius: 50%; border: 2px solid #00eaff; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0055ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></div>`,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
 
   return (
-    <div className="h-64 mt-6 rounded-2xl overflow-hidden border border-white/5 relative">
-      <APIProvider apiKey={API_KEY} version="weekly">
-        <Map
-          defaultCenter={{ lat: 19.076, lng: 72.8777 }}
-          defaultZoom={14}
-          mapId="DELIVERY_TRACKING_MAP"
-          internalUsageAttributionIds={["gmp_mcp_codeassist_v1_aistudio"]}
-          style={{ width: "100%", height: "100%" }}
-          disableDefaultUI={true}
-        >
-          <AdvancedMarker position={partnerLocation} title="Delivery Partner">
-            <div className="bg-white p-2 rounded-full shadow-lg border-2 border-[#00eaff]">
-              <Package className="w-5 h-5 text-[#0055ff]" />
-            </div>
-          </AdvancedMarker>
-          {/* Customer Location */}
-          <AdvancedMarker
-            position={{ lat: 19.082, lng: 72.88 }}
-            title="Your Location"
-          >
-            <Pin background="#00eaff" glyphColor="#fff" borderColor="#0055ff" />
-          </AdvancedMarker>
-        </Map>
-      </APIProvider>
+    <div className="h-64 mt-6 rounded-2xl overflow-hidden border border-white/5 relative z-0">
+      <MapContainer
+        center={[19.076, 72.8777]}
+        zoom={14}
+        style={{ width: "100%", height: "100%" }}
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <Marker position={[partnerLocation.lat, partnerLocation.lng]} icon={deliveryMode === 'drone' ? droneIcon : partnerIcon}>
+          <Popup>Delivery Partner</Popup>
+        </Marker>
+        <Marker position={[19.082, 72.88]}>
+          <Popup>Your Location</Popup>
+        </Marker>
+      </MapContainer>
     </div>
   );
 }
@@ -138,12 +135,28 @@ export function OrderDetails() {
     customerPhone: state?.customerDetails?.phone || "+91 9876543210",
     landmark: state?.customerDetails?.landmark || "",
     paymentMethod: state?.customerDetails?.paymentMethod || "upi",
-    bill: {
-      itemTotal: state?.cartTotal || 228,
-      delivery: 0,
-      handling: 5,
-      total: (state?.cartTotal || 228) + 5,
-    },
+    deliveryMode: state?.customerDetails?.deliveryMode || "standard",
+    isSubscription: state?.customerDetails?.isSubscription || false,
+    bill: (() => {
+      const itemTotal = state?.cartTotal || 228;
+      const deliveryMode = state?.customerDetails?.deliveryMode || "standard";
+      const isSubscription = state?.customerDetails?.isSubscription || false;
+      
+      let delivery = 0;
+      if (deliveryMode === 'express') delivery = 20;
+      if (deliveryMode === 'drone') delivery = 50;
+      
+      const discount = isSubscription ? Math.round(itemTotal * 0.10) : 0;
+      const handling = 5;
+      
+      return {
+        itemTotal,
+        delivery,
+        handling,
+        discount,
+        total: itemTotal + delivery + handling - discount,
+      };
+    })(),
   };
 
   return (
@@ -173,16 +186,22 @@ export function OrderDetails() {
 
             <div className="flex justify-between items-start mb-8 relative z-10">
               <div>
-                <h2 className="text-xl font-bold text-white mb-1">
-                  Arriving in {order.eta}
-                </h2>
+                <div className="flex items-center gap-2 mb-1">
+                  <h2 className="text-xl font-bold text-white">
+                    Arriving in {order.eta}
+                  </h2>
+                  <div className="flex items-center gap-1 bg-[#8a2be2]/20 px-2 py-0.5 rounded text-[10px] text-[#8a2be2] border border-[#8a2be2]/20 font-medium">
+                     <Sparkles className="w-3 h-3" />
+                     AI ETA Prediction
+                  </div>
+                </div>
                 <p className="text-sm text-[#00eaff] font-medium">
-                  {order.status}
+                  {order.status} • {order.deliveryMode === 'drone' ? 'Drone Delivery' : order.deliveryMode === 'express' ? 'Express Delivery' : 'Standard Delivery'}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-full border-2 border-[#00eaff] border-t-transparent animate-spin flex items-center justify-center relative">
+              <div className={`w-12 h-12 rounded-full border-2 ${order.deliveryMode === 'drone' ? 'border-purple-500 text-purple-500' : 'border-[#00eaff] text-[#00eaff]'} border-t-transparent animate-spin flex items-center justify-center relative`}>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-[#00eaff] animate-pulse" />
+                  {order.deliveryMode === 'drone' ? <Plane className="w-5 h-5 animate-pulse" /> : <Clock className="w-5 h-5 animate-pulse" />}
                 </div>
               </div>
             </div>
@@ -248,7 +267,7 @@ export function OrderDetails() {
           </div>
 
           {/* Map */}
-          <DeliveryMap />
+          <DeliveryMap deliveryMode={order.deliveryMode} />
 
           {/* Items Summary */}
           <div className="glass-panel rounded-2xl p-6">
@@ -332,13 +351,21 @@ export function OrderDetails() {
                 <span>₹{order.bill.itemTotal}</span>
               </div>
               <div className="flex justify-between">
-                <span>Delivery Partner Fee</span>
-                <span className="text-[#00eaff]">FREE</span>
+                <span>Delivery {order.deliveryMode === 'drone' ? '(Drone)' : order.deliveryMode === 'express' ? '(Express)' : ''}</span>
+                <span className={order.bill.delivery === 0 ? "text-[#00eaff]" : "text-white"}>
+                  {order.bill.delivery === 0 ? "FREE" : `₹${order.bill.delivery}`}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Handling Fee</span>
                 <span>₹{order.bill.handling}</span>
               </div>
+              {order.isSubscription && (
+                <div className="flex justify-between text-green-400">
+                  <span>Subscription Discount</span>
+                  <span>-₹{order.bill.discount}</span>
+                </div>
+              )}
               <div className="border-t border-white/10 pt-3 mt-3 flex justify-between items-center text-white font-medium">
                 <span>Total Paid</span>
                 <span className="text-lg">₹{order.bill.total}</span>
@@ -355,10 +382,60 @@ export function OrderDetails() {
             </div>
           </div>
 
-          <button className="w-full flex items-center justify-between glass-card p-4 rounded-xl text-sm font-medium text-white hover:bg-white/5 transition-colors">
-            <span>Download Invoice</span>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-          </button>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => {
+                // Mock one click repeat order logic
+                alert("Order successfully copied to cart!");
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white font-medium py-4 rounded-xl shadow-lg transition-colors"
+            >
+              <RefreshCcw className="w-5 h-5" />
+              One-Click Repeat Order
+            </button>
+
+            <button 
+              onClick={() => {
+                const invoiceContent = `
+========================================
+             INVOICE
+========================================
+Order ID: ${order.id}
+Date: ${new Date().toLocaleDateString()}
+Status: ${order.status}
+Delivery Mode: ${order.deliveryMode === 'drone' ? 'Drone Delivery' : order.deliveryMode === 'express' ? 'Express Delivery' : 'Standard Delivery'}
+
+----------------------------------------
+Items:
+${order.items.map((item: any) => `- ${item.name} x${item.quantity} (₹${item.price * item.quantity})`).join('\n')}
+
+----------------------------------------
+Subtotal: ₹${order.bill.itemTotal}
+Delivery Fee: ₹${order.bill.delivery}
+Handling Fee: ₹${order.bill.handling}
+Subscription Discount: ${order.isSubscription ? '-₹' + order.bill.discount : '₹0'}
+Total: ₹${order.bill.total}
+
+Thank you for shopping with us!
+========================================
+                `.trim();
+
+                const blob = new Blob([invoiceContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Invoice-${order.id}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              className="w-full flex items-center justify-between glass-card p-4 rounded-xl text-sm font-medium text-white hover:bg-white/5 transition-colors"
+            >
+              <span>Download Invoice</span>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

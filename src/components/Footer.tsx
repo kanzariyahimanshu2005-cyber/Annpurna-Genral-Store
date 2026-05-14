@@ -57,6 +57,7 @@ export function Footer() {
                 { name: 'Contact Us', path: '/contact' },
                 { name: 'Privacy Policy', path: '/privacy-policy' },
                 { name: 'Terms of Service', path: '/terms-of-service' },
+                { name: 'Delivery Analytics', path: '/analytics' },
               ].map((item) => (
                 <li key={item.name}>
                   <Link to={item.path} className="text-sm text-gray-400 hover:text-white transition-colors">{item.name}</Link>

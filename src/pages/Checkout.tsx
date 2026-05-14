@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { MapPin, Phone, User, CreditCard, ArrowRight, ShieldCheck } from "lucide-react";
+import { MapPin, Phone, User, CreditCard, ArrowRight, ShieldCheck, Package } from "lucide-react";
 
 export function Checkout() {
   const { cart, cartTotal, clearCart } = useCart();
@@ -13,13 +13,30 @@ export function Checkout() {
     phone: "",
     address: "",
     landmark: "",
-    paymentMethod: "upi"
+    paymentMethod: "upi",
+    deliveryMode: "standard", // standard, express, drone
+    isSubscription: false,
   });
 
   if (cart.length === 0) {
     navigate("/cart");
     return null;
   }
+
+  const getDeliveryCharge = () => {
+    if (formData.deliveryMode === 'express') return 20;
+    if (formData.deliveryMode === 'drone') return 50;
+    return 0; // standard
+  };
+
+  const getDiscount = () => {
+    if (formData.isSubscription) {
+      return Math.round(cartTotal * 0.10); // 10% off
+    }
+    return 0;
+  };
+
+  const finalTotal = cartTotal + getDeliveryCharge() + 5 - getDiscount();
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +50,7 @@ export function Checkout() {
       id: orderId,
       date: new Date().toISOString(),
       status: "Processing",
-      total: cartTotal + 5,
+      total: finalTotal,
       items: cart,
       customerDetails: formData
     };
@@ -122,6 +139,81 @@ export function Checkout() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Delivery Method */}
+            <div className="glass-panel p-6 rounded-2xl border border-white/5">
+              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#00eaff]" /> Delivery Options
+              </h2>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <label className={`cursor-pointer flex flex-col gap-2 p-4 rounded-xl border transition-colors ${formData.deliveryMode === 'standard' ? 'bg-[#00eaff]/10 border-[#00eaff]' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="delivery" 
+                      value="standard"
+                      checked={formData.deliveryMode === 'standard'}
+                      onChange={(e) => setFormData({...formData, deliveryMode: e.target.value})}
+                      className="accent-[#00eaff] w-4 h-4 cursor-pointer" 
+                    />
+                    <span className="text-white font-medium">Standard</span>
+                  </div>
+                  <span className="text-xs text-gray-400 ml-6">FREE • Delivery in 2 hours</span>
+                </label>
+                
+                <label className={`cursor-pointer flex flex-col gap-2 p-4 rounded-xl border transition-colors ${formData.deliveryMode === 'express' ? 'bg-orange-500/10 border-orange-500' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="delivery" 
+                      value="express"
+                      checked={formData.deliveryMode === 'express'}
+                      onChange={(e) => setFormData({...formData, deliveryMode: e.target.value})}
+                      className="accent-orange-500 w-4 h-4 cursor-pointer" 
+                    />
+                    <span className="text-white font-medium">Express</span>
+                  </div>
+                  <span className="text-xs text-gray-400 ml-6">₹20 • Delivery in 10-20 mins</span>
+                </label>
+                
+                <label className={`cursor-pointer flex flex-col gap-2 p-4 rounded-xl border transition-colors ${formData.deliveryMode === 'drone' ? 'bg-purple-500/10 border-purple-500' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      name="delivery" 
+                      value="drone"
+                      checked={formData.deliveryMode === 'drone'}
+                      onChange={(e) => setFormData({...formData, deliveryMode: e.target.value})}
+                      className="accent-purple-500 w-4 h-4 cursor-pointer" 
+                    />
+                    <span className="text-white font-medium flex items-center gap-1">Drone <span className="px-1.5 py-0.5 rounded text-[9px] bg-purple-500/20 text-purple-400 border border-purple-500/30 uppercase tracking-widest leading-none">BETA</span></span>
+                  </div>
+                  <span className="text-xs text-gray-400 ml-6">₹50 • Delivery in 5 mins (AirDrop)</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Subscription */}
+            <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-gradient-to-br from-green-500/5 to-transparent">
+               <label className="flex items-start gap-4 cursor-pointer">
+                 <input 
+                   type="checkbox"
+                   checked={formData.isSubscription}
+                   onChange={(e) => setFormData({...formData, isSubscription: e.target.checked})}
+                   className="accent-green-500 w-5 h-5 cursor-pointer mt-0.5"
+                 />
+                 <div>
+                   
+<h3 className="text-white font-medium flex items-center gap-2">
+                     Subscribe to this order monthly
+                     <span className="px-2 py-0.5 text-xs rounded-md bg-green-500/20 text-green-400 border border-green-500/30 font-bold">SAVE 10%</span>
+                   </h3>
+                   <p className="text-sm text-gray-400 mt-1">
+                     Get these groceries automatically delivered to you every month. You can cancel anytime.
+                   </p>
+                 </div>
+               </label>
             </div>
 
             {/* Payment Method */}
@@ -235,16 +327,24 @@ export function Checkout() {
               </div>
               <div className="flex justify-between">
                 <span>Delivery Charge</span>
-                <span className="text-[#00eaff]">FREE</span>
+                <span className={getDeliveryCharge() === 0 ? "text-[#00eaff]" : "text-white"}>
+                  {getDeliveryCharge() === 0 ? "FREE" : `₹${getDeliveryCharge()}`}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Handling Fee</span>
                 <span>₹5</span>
               </div>
+              {formData.isSubscription && (
+                <div className="flex justify-between text-green-400">
+                  <span>Subscription Discount (10%)</span>
+                  <span>-₹{getDiscount()}</span>
+                </div>
+              )}
               
               <div className="border-t border-white/10 pt-4 mt-4 flex justify-between items-center text-white">
                 <span className="font-medium text-lg">Grand Total</span>
-                <span className="font-bold text-2xl text-[#00eaff]">₹{cartTotal + 5}</span>
+                <span className="font-bold text-2xl text-[#00eaff]">₹{finalTotal}</span>
               </div>
             </div>
             
